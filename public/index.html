@@ -1,19 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Multiplayer Block Sandbox</title>
-<style>
-body { margin:0; overflow:hidden; background:#111; }
-#ui { position:absolute; top:10px; left:10px; color:white; }
-</style>
+  <meta charset="UTF-8">
+  <title>Trailmakers Web</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: sans-serif;
+      z-index: 10;
+    }
+  </style>
 </head>
 <body>
-<div id="ui">
-B = Build | E = Seat | 1–7 Blocks | R Rotate
-</div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script type="module" src="main.js"></script>
+  <div id="ui">
+    B = Build | E = Seat | 1–7 Blocks | R = Rotate
+  </div>
+
+  <!-- Three.js -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js"></script>
+
+  <!-- Cannon-es physics -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/cannon-es/dist/cannon-es.js"></script>
+
+  <!-- Your game files -->
+  <script type="module" src="constants.js"></script>
+  <script type="module" src="vehicle.js"></script>
+  <script type="module" src="build.js"></script>
+  <script type="module" src="player.js"></script>
+  <script type="module" src="network.js"></script>
+  <script type="module" src="main.js"></script>
+
 </body>
 </html>
