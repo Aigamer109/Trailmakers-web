@@ -1,152 +1,136 @@
-diff --git a/public/build.js b/public/build.js
-index 5065debe1578d0f6765801a144d72b22dde1fcaa..aecb7ab6c078342c52db448c8d94ea25b3613897 100644
---- a/public/build.js
-+++ b/public/build.js
-@@ -1,62 +1,90 @@
--// build.js
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/public/main.js b/public/main.js
+index fc4bc606d47235e3b44663419873137e0414a478..789324b0cac59ba4d1355b69721308bc1f06c9db 100644
+--- a/public/main.js
++++ b/public/main.js
+@@ -1,52 +1,92 @@
+-// main.js
+-import * as THREE from "three";
+-import * as CANNON from "cannon-es";
 +import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.158/build/three.module.js";
-+import { BUILD_GRID } from "./constants.js";
-+
- export class BuildMode {
--    constructor(camera, vehicle) {
--        this.camera = camera;
--        this.vehicle = vehicle;
--        this.enabled = false;
--        this.toolOpen = false;
--        this.paintOpen = false;
--        this.orbitAngle = 0;
--        this.orbitRadius = 10;
--        this.keys = { ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
--
--        window.addEventListener("keydown", e => {
--            if (e.key === "b") this.enabled = !this.enabled;
--            if (!this.enabled) return;
--
--            if (e.key in this.keys) this.keys[e.key] = true;
--            if (e.key === "t") this.toolOpen = !this.toolOpen;
--            if (e.key === "p") this.paintOpen = !this.paintOpen;
--        });
--        window.addEventListener("keyup", e => { if (e.key in this.keys) this.keys[e.key] = false; });
-+  constructor(renderer, camera, scene, vehicle, onUiUpdate) {
-+    this.renderer = renderer;
-+    this.camera = camera;
-+    this.scene = scene;
-+    this.vehicle = vehicle;
-+    this.onUiUpdate = onUiUpdate;
-+
-+    this.enabled = true;
-+    this.selectedType = "frame";
-+
-+    this.raycaster = new THREE.Raycaster();
-+    this.mouse = new THREE.Vector2();
-+    this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-+
-+    this.preview = new THREE.Mesh(
-+      new THREE.BoxGeometry(1, 1, 1),
-+      new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.4 })
-+    );
-+    this.scene.add(this.preview);
-+
-+    window.addEventListener("keydown", (e) => this.onKeyDown(e));
-+    this.renderer.domElement.addEventListener("mousemove", (e) => this.onMouseMove(e));
-+    this.renderer.domElement.addEventListener("click", () => this.tryPlace());
-+
-+    this.hoverPos = new THREE.Vector3();
-+    this.updateUi();
-+  }
-+
-+  updateUi() {
-+    this.onUiUpdate({ enabled: this.enabled, selectedType: this.selectedType });
-+  }
-+
-+  onKeyDown(e) {
-+    if (e.key.toLowerCase() === "b") {
-+      this.enabled = !this.enabled;
-+      this.preview.visible = this.enabled;
-+      this.updateUi();
-+      return;
-     }
+ import { Vehicle } from "./vehicle.js";
+ import { BuildMode } from "./build.js";
  
--    update() {
--        if (!this.enabled) return;
--
--        const speed = 0.3;
--        if (this.keys.ArrowUp) this.orbitRadius -= speed;
--        if (this.keys.ArrowDown) this.orbitRadius += speed;
--        if (this.keys.ArrowLeft) this.orbitAngle -= speed*0.02;
--        if (this.keys.ArrowRight) this.orbitAngle += speed*0.02;
--
--        const center = this.vehicle.mesh.position;
--        this.camera.position.x = center.x + this.orbitRadius * Math.sin(this.orbitAngle);
--        this.camera.position.z = center.z + this.orbitRadius * Math.cos(this.orbitAngle);
--        this.camera.position.y = center.y + 5;
--        this.camera.lookAt(center);
--
--        if (this.toolOpen) {
--            // Build tool: change keybinds
--            const f = prompt("Forward key (current "+this.vehicle.keybinds.forward+"):");
--            if(f) this.vehicle.keybinds.forward = f.toLowerCase();
--            const b = prompt("Backward key (current "+this.vehicle.keybinds.backward+"):");
--            if(b) this.vehicle.keybinds.backward = b.toLowerCase();
--            const l = prompt("Left key (current "+this.vehicle.keybinds.left+"):");
--            if(l) this.vehicle.keybinds.left = l.toLowerCase();
--            const r = prompt("Right key (current "+this.vehicle.keybinds.right+"):");
--            if(r) this.vehicle.keybinds.right = r.toLowerCase();
--        }
--
--        if (this.paintOpen) {
--            // Paint tool: change block colors
--            const type = prompt("Block type to paint (seat, engine, wheel, steering, 1x2, 2x4, 4x4):");
--            const color = prompt("Hex color (e.g., ff0000):");
--            if(type && color) {
--                for(let b of this.vehicle.blocks){
--                    if(b.type===type) b.mesh.material.color.set(parseInt(color,16));
--                }
--            }
--        }
-+    if (e.key === "1") this.selectedType = "frame";
-+    if (e.key === "2") this.selectedType = "engine";
-+    if (e.key === "3") this.selectedType = "wheel";
-+    if (e.key === "4") this.selectedType = "seat";
+ const scene = new THREE.Scene();
+-scene.background = new THREE.Color(0x87ceeb);
++scene.background = new THREE.Color(0x9fd8ff);
+ 
+-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+-const renderer = new THREE.WebGLRenderer({ antialias:true });
++const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
++camera.position.set(0, 8, 12);
 +
-+    this.updateUi();
-+  }
++const renderer = new THREE.WebGLRenderer({ antialias: true });
+ renderer.setSize(window.innerWidth, window.innerHeight);
++renderer.shadowMap.enabled = true;
+ document.body.appendChild(renderer.domElement);
+ 
+-// Lights
+-const dirLight = new THREE.DirectionalLight(0xffffff,1);
+-dirLight.position.set(10,20,10);
+-scene.add(dirLight);
+-scene.add(new THREE.AmbientLight(0x404040));
++const hemi = new THREE.HemisphereLight(0xffffff, 0x5d6d7e, 0.8);
++scene.add(hemi);
 +
-+  onMouseMove(e) {
-+    const rect = this.renderer.domElement.getBoundingClientRect();
-+    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-+    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-+  }
++const sun = new THREE.DirectionalLight(0xffffff, 0.9);
++sun.position.set(15, 25, 10);
++sun.castShadow = true;
++scene.add(sun);
+ 
+-// Grid
+-const grid = new THREE.GridHelper(500,50,0x444444,0x888888);
+-scene.add(grid);
++const ground = new THREE.Mesh(
++  new THREE.PlaneGeometry(400, 400),
++  new THREE.MeshStandardMaterial({ color: 0x72b86f })
++);
++ground.rotation.x = -Math.PI / 2;
++ground.receiveShadow = true;
++scene.add(ground);
+ 
+-// Physics
+-const world = new CANNON.World();
+-world.gravity.set(0,-9.81,0);
+-world.broadphase = new CANNON.NaiveBroadphase();
++scene.add(new THREE.GridHelper(400, 80, 0x4d4d4d, 0x6b6b6b));
+ 
+-// Vehicle
+-const vehicle = new Vehicle(scene, world);
+-vehicle.mesh.position.set(0,0,0);
++const vehicle = new Vehicle(scene);
++vehicle.mesh.position.set(0, 0.5, 0);
++vehicle.addBlock("seat", new THREE.Vector3(0, 0, 0));
++vehicle.addBlock("engine", new THREE.Vector3(0, 0, 1));
++vehicle.addBlock("wheel", new THREE.Vector3(-1, 0, 0));
++vehicle.addBlock("wheel", new THREE.Vector3(1, 0, 0));
++vehicle.addBlock("frame", new THREE.Vector3(0, 0, -1));
+ 
+-// Default blocks
+-vehicle.addBlock("seat",{x:0,y:1,z:0});
+-vehicle.addBlock("engine",{x:1,y:1,z:0});
+-vehicle.addBlock("wheel",{x:-1,y:0.5,z:1});
+-vehicle.addBlock("wheel",{x:1,y:0.5,z:1});
+-vehicle.addBlock("steering",{x:0,y:1.5,z:-1});
++const input = { forward: false, backward: false, left: false, right: false };
++window.addEventListener("keydown", (e) => {
++  const key = e.key.toLowerCase();
++  if (key === "w") input.forward = true;
++  if (key === "s") input.backward = true;
++  if (key === "a") input.left = true;
++  if (key === "d") input.right = true;
++});
++window.addEventListener("keyup", (e) => {
++  const key = e.key.toLowerCase();
++  if (key === "w") input.forward = false;
++  if (key === "s") input.backward = false;
++  if (key === "a") input.left = false;
++  if (key === "d") input.right = false;
++});
+ 
+-// Build mode
+-const build = new BuildMode(camera, vehicle);
++const ui = document.getElementById("ui");
++const buildMode = new BuildMode(renderer, camera, scene, vehicle, ({ enabled, selectedType }) => {
++  ui.innerHTML = `
++  <strong>Trailbuilders (Web Lite)</strong><br>
++  B: Toggle Build (${enabled ? "ON" : "OFF"})<br>
++  1: Frame, 2: Engine, 3: Wheel, 4: Seat<br>
++  Click: Place ${selectedType}<br>
++  Drive: W A S D (build must be OFF)
++  `;
++});
+ 
+-// Animate loop
++const clock = new THREE.Clock();
+ function animate() {
+-    requestAnimationFrame(animate);
+-    world.step(1/60);
+-    vehicle.update();
+-    build.update();
+-    renderer.render(scene,camera);
++  requestAnimationFrame(animate);
++  const dt = clock.getDelta();
 +
-+  updatePreview() {
-+    this.raycaster.setFromCamera(this.mouse, this.camera);
-+    const worldHit = new THREE.Vector3();
-+    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, worldHit);
++  buildMode.update();
++  vehicle.update(dt, input, !buildMode.enabled);
 +
-+    if (!hit) {
-+      this.preview.visible = false;
-+      return;
-     }
++  const followDistance = 9;
++  const followHeight = 5;
++  const behind = new THREE.Vector3(0, followHeight, followDistance).applyQuaternion(vehicle.mesh.quaternion);
++  const targetCamPos = vehicle.mesh.position.clone().add(behind);
++  camera.position.lerp(targetCamPos, 0.08);
++  camera.lookAt(vehicle.mesh.position);
 +
-+    this.preview.visible = this.enabled;
-+    const localGrid = this.vehicle.worldToLocalGrid(worldHit);
-+    localGrid.y = 0;
-+    this.hoverPos.copy(localGrid);
-+
-+    const worldPos = this.vehicle.mesh.localToWorld(localGrid.clone());
-+    worldPos.x = Math.round(worldPos.x / BUILD_GRID) * BUILD_GRID;
-+    worldPos.z = Math.round(worldPos.z / BUILD_GRID) * BUILD_GRID;
-+
-+    this.preview.position.copy(this.vehicle.worldToLocal(worldPos));
-+  }
-+
-+  tryPlace() {
-+    if (!this.enabled) return;
-+    this.vehicle.addBlock(this.selectedType, this.hoverPos.clone());
-+  }
-+
-+  update() {
-+    if (!this.enabled) return;
-+    this.updatePreview();
-+  }
++  renderer.render(scene, camera);
  }
+ animate();
++
++window.addEventListener("resize", () => {
++  camera.aspect = window.innerWidth / window.innerHeight;
++  camera.updateProjectionMatrix();
++  renderer.setSize(window.innerWidth, window.innerHeight);
++});
+ 
+EOF
+)
