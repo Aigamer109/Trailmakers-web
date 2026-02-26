@@ -19,7 +19,7 @@
 <body>
 
 <div id="ui">
-  B = Build | R = Rotate | 1–7 = Block Type
+  B = Build | R = Rotate | 1–7 = Block Type | E = Enter/Exit Vehicle
 </div>
 
 <!-- Three.js -->
@@ -28,12 +28,13 @@
 <!-- Cannon-es physics -->
 <script type="module" src="https://cdn.jsdelivr.net/npm/cannon-es/dist/cannon-es.js"></script>
 
-<!-- Game scripts -->
-<script type="module" src="constants.js"></script>
-<script type="module" src="vehicle.js"></script>
-<script type="module" src="build.js"></script>
-<script type="module" src="network.js"></script>
-<script type="module" src="main.js"></script>
+<!-- Game scripts (all using relative ./ paths) -->
+<script type="module" src="./constants.js"></script>
+<script type="module" src="./vehicle.js"></script>
+<script type="module" src="./build.js"></script>
+<script type="module" src="./player.js"></script>
+<script type="module" src="./network.js"></script>
+<script type="module" src="./main.js"></script>
 
 </body>
 </html>
