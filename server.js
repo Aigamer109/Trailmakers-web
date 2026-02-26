@@ -1,38 +1,50 @@
 const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
 
-app.use(express.static("public"));
+const path = require("path");
 
-let players = {};
+// Serve static files from 'public'
+app.use(express.static(path.join(__dirname, "public")));
+
+// Serve index.html
+app.get("/", (req, res) => {
+    res.sendFile(path.join(__dirname, "public/index.html"));
+});
+
+// Store current state of all vehicles
+let vehicles = {}; // { playerId: [blocks] }
 
 io.on("connection", socket => {
+    console.log("Player connected:", socket.id);
 
-    players[socket.id] = {
-        id: socket.id,
-        position: {x:0,y:5,z:0},
-        rotation: {x:0,y:0,z:0},
-        velocity: {x:0,y:0,z:0},
-        build: [],
-        health: 100
-    };
+    // Send existing blocks to new player
+    if (vehicles[socket.id]) {
+        vehicles[socket.id].forEach(block => {
+            socket.emit("updateBlock", { ...block, playerId: socket.id });
+        });
+    }
 
-    socket.emit("init", players);
-    socket.broadcast.emit("playerJoined", players[socket.id]);
+    // When a player places a block
+    socket.on("placeBlock", data => {
+        // Store the block for this player
+        if (!vehicles[socket.id]) vehicles[socket.id] = [];
+        vehicles[socket.id].push(data);
 
-    socket.on("stateUpdate", data => {
-        players[socket.id] = data;
-        socket.broadcast.emit("playerState", data);
+        // Broadcast to all other players
+        socket.broadcast.emit("updateBlock", { ...data, playerId: socket.id });
     });
 
+    // Player disconnect
     socket.on("disconnect", () => {
-        delete players[socket.id];
-        io.emit("removePlayer", socket.id);
+        console.log("Player disconnected:", socket.id);
+        delete vehicles[socket.id];
     });
 });
 
-server.listen(process.env.PORT || 3000);
+// Start server
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
