@@ -13,8 +13,10 @@ let players = {};
 io.on("connection", socket => {
 
     players[socket.id] = {
+        id: socket.id,
         position: {x:0,y:5,z:0},
         rotation: {x:0,y:0,z:0},
+        velocity: {x:0,y:0,z:0},
         build: [],
         health: 100
     };
@@ -22,9 +24,9 @@ io.on("connection", socket => {
     socket.emit("init", players);
     socket.broadcast.emit("playerJoined", players[socket.id]);
 
-    socket.on("update", data => {
+    socket.on("stateUpdate", data => {
         players[socket.id] = data;
-        socket.broadcast.emit("playerUpdate", {id:socket.id, data});
+        socket.broadcast.emit("playerState", data);
     });
 
     socket.on("disconnect", () => {
